@@ -4,10 +4,21 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const genAI = new GoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
+const modelName = process.env.GEMINI_MODEL || "gpt-4o-mini";
+let model;
+try {
+  model = genAI.getGenerativeModel({ model: modelName });
+} catch (err) {
+  console.warn("Could not initialize generative model:", err);
+  model = null;
+}
 
 export const generateAIInsights = async (industry) => {
+  if (!industry) {
+    throw new Error("Industry is required to generate insights");
+  }
+
   const prompt = `
           Analyze the current state of the ${industry} industry and provide insights in ONLY the following JSON format without any additional notes or explanations:
           {
@@ -28,12 +39,46 @@ export const generateAIInsights = async (industry) => {
           Include at least 5 skills and trends.
         `;
 
-  const result = await model.generateContent(prompt);
-  const response = result.response;
-  const text = response.text();
-  const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
+    }
 
-  return JSON.parse(cleanedText);
+    if (!model) {
+      throw new Error("Generative model not initialized or unavailable");
+    }
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+    const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
+    const insights = JSON.parse(cleanedText);
+
+    // Validate the response structure
+    if (!insights.salaryRanges || !Array.isArray(insights.salaryRanges)) {
+      throw new Error("Invalid response: salaryRanges not found");
+    }
+
+    return insights;
+  } catch (error) {
+    console.error(`Error generating AI insights for ${industry}:`, error);
+    
+    // Return fallback insights if API fails
+    console.warn(`Using fallback insights for ${industry}`);
+    return {
+      salaryRanges: [
+        { role: "Junior", min: 40, max: 60, median: 50, location: "USA" },
+        { role: "Mid-level", min: 60, max: 90, median: 75, location: "USA" },
+        { role: "Senior", min: 90, max: 150, median: 120, location: "USA" },
+      ],
+      growthRate: 5,
+      demandLevel: "Medium",
+      topSkills: ["Leadership", "Communication", "Problem Solving", "Technical Skills", "Adaptability"],
+      marketOutlook: "Positive",
+      keyTrends: ["Digital Transformation", "Remote Work", "Automation", "AI Integration", "Sustainability"],
+      recommendedSkills: ["Cloud Technologies", "Data Analysis", "Project Management", "Soft Skills", "Continuous Learning"],
+    };
+  }
 };
 
 export async function getIndustryInsights() {

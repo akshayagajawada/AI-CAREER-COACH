@@ -5,10 +5,16 @@ import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { revalidatePath } from "next/cache";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const genAI = new GoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
+const modelName = process.env.GEMINI_MODEL || "gpt-4o-mini";
+let model = null;
+try {
+  model = genAI.getGenerativeModel({ model: modelName });
+} catch (err) {
+  console.warn("Generative model not initialized or unavailable:", err?.message || err);
+}
 
-export async function saveResume(content) {
+export async function saveResume(payload) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
@@ -18,17 +24,29 @@ export async function saveResume(content) {
 
   if (!user) throw new Error("User not found");
 
+  // Support old string payloads and newer { translations } payload
+  let translations = null;
+  if (typeof payload === 'string') {
+    translations = { en: payload };
+  } else if (payload && payload.translations) {
+    translations = payload.translations;
+  } else {
+    throw new Error('Invalid payload for saveResume');
+  }
+
   try {
     const resume = await db.resume.upsert({
       where: {
         userId: user.id,
       },
       update: {
-        content,
+        content: translations.en || translations[Object.keys(translations)[0]] || '',
+        translations,
       },
       create: {
         userId: user.id,
-        content,
+        content: translations.en || translations[Object.keys(translations)[0]] || '',
+        translations,
       },
     });
 
@@ -87,12 +105,33 @@ export async function improveWithAI({ current, type }) {
   `;
 
   try {
+    if (!model) throw new Error("Generative model not available");
     const result = await model.generateContent(prompt);
     const response = result.response;
     const improvedContent = response.text().trim();
     return improvedContent;
   } catch (error) {
     console.error("Error improving content:", error);
-    throw new Error("Failed to improve content");
+    // Fall back to returning the original content if AI is unavailable
+    return current;
+  }
+}
+
+// Translate markdown content from sourceLang to targetLang while preserving markdown structure
+export async function translateResume({ content, sourceLang = 'en', targetLang }) {
+  if (!content) throw new Error('No content provided');
+  if (!targetLang) throw new Error('No target language provided');
+
+  const prompt = `You are a professional translator. Translate the following markdown resume from ${sourceLang} to ${targetLang}. Preserve all markdown formatting, headings, lists, links, and special characters. Do NOT translate names, URLs, email addresses, or code blocks. Keep the structure identical and only return the translated markdown content without any extra commentary.`;
+
+  try {
+    if (!model) throw new Error('Generative model not available');
+    const result = await model.generateContent(`${prompt}\n\nResume:\n\n"""\n${content}\n"""\n\nReturn only the translated markdown.`);
+    const response = result.response;
+    const translated = response.text().trim();
+    return translated;
+  } catch (error) {
+    console.error('Error translating content:', error);
+    throw new Error('Failed to translate content');
   }
 }

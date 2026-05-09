@@ -21,12 +21,15 @@ model User {
   // Profile fields
   bio           String?
   experience    Int?      // Years of experience
+  autoTranslate Boolean   @default(true) // Auto-translate resumes
   
   // Relations
   skills        String[]  // Array of skills
   assessments   Assessment[]
   resume        Resume?
   coverLetter   CoverLetter[]
+  careerGoals   CareerGoal[]
+  careerRecommendations CareerRecommendation[]
 }
 
 model Assessment {
@@ -47,7 +50,8 @@ model Resume {
   id          String    @id @default(cuid())
   userId      String    @unique    // One resume per user
   user        User      @relation(fields: [userId], references: [id])
-  content     String    @db.Text // Markdown content
+  content     String    @db.Text // Markdown content (default language)
+  translations Json?     // Optional JSON object with language keys (e.g., { en: "...", fr: "..." })
   atsScore    Float?
   feedback    String?
   createdAt   DateTime  @default(now())
@@ -96,4 +100,78 @@ model IndustryInsight {
   nextUpdate    DateTime  // Scheduled update time
 
   @@index([industry])
+}
+
+// Career roadmap models
+model CareerGoal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      String    @default("not_started") // not_started, in_progress, completed
+  milestones  CareerMilestone[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model CareerMilestone {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      CareerGoal @relation(fields: [goalId], references: [id])
+  title     String
+  notes     String?
+  dueDate   DateTime?
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([goalId])
+}
+
+// Career Recommendations from ESCO (European Skills/Competences/Occupations)
+model CareerRecommendation {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  
+  // ESCO Data
+  escoUri           String    // ESCO URI (e.g., "http://data.europa.eu/esco/occupation/...")
+  escoCode          String?   // ESCO code (e.g., "1234")
+  title             String    // Job title
+  description       String    @db.Text // Career description
+  
+  // Matching details
+  matchScore        Float     // 0-100 match percentage based on skills
+  matchedSkills     String[]  // User's skills that match this career
+  requiredSkills    String[]  // All skills needed for this career
+  
+  // Additional ESCO information
+  brightOutlook     Boolean   @default(false) // Is this a regulated/high-demand career?
+  education         String?   // Typical education level or regulation note
+  experience        String?   // Typical experience level (may be null for ESCO)
+  onTheJobTraining  String?   // Type of on-the-job training (may be null for ESCO)
+  
+  // Salary & growth
+  medianWage        Float?    // Annual median wage
+  growthRate        Float?    // Projected growth rate
+  
+  // Additional details
+  tasks             String[]  // Key tasks/responsibilities
+  technologies      String[]  // Technologies used in this career
+  knowledge         String[]  // Knowledge areas
+  abilities         String[]  // Required abilities
+  
+  // Status
+  isFavorite        Boolean   @default(false)
+  isViewed          Boolean   @default(false)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([escoUri])
+  @@unique([userId, escoUri])
 }

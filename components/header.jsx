@@ -7,6 +7,7 @@ import {
   GraduationCap,
   ChevronDown,
   StarsIcon,
+  Target,
 } from "lucide-react";
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
@@ -67,19 +68,23 @@ export default async function Header() {
                     Build Resume
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/ai-cover-letter"
-                    className="flex items-center gap-2"
-                  >
-                    <PenBox className="h-4 w-4" />
-                    Cover Letter
-                  </Link>
-                </DropdownMenuItem>
+                {/* Cover Letter removed from Growth Tools (hidden in UI) */}
                 <DropdownMenuItem asChild>
                   <Link href="/interview" className="flex items-center gap-2">
                     <GraduationCap className="h-4 w-4" />
                     Interview Prep
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/career-roadmap" className="flex items-center gap-2">
+                    <StarsIcon className="h-4 w-4" />
+                    Career Roadmap
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/career-recommendations" className="flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Career Match
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
