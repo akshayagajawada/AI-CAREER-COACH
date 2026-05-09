@@ -1,4 +1,11 @@
-# AI Career Coach
+# AI Career Coach 🚀
+
+Welcome to AI Career Coach, an AI-powered full-stack platform designed to help students and job seekers improve their career growth through intelligent resume analysis, mock interviews, and personalized career guidance.
+
+👩‍💻 Developer: Akshaya Gajawada
+
+I developed this project to simplify career preparation using AI-driven insights and modern web technologies. The platform helps users analyze resumes, identify skill gaps, prepare for interviews, and receive personalized career recommendations.
+
 
 AI-powered career guidance platform built using Next.js, Prisma, Tailwind CSS, and Gemini AI.
 
@@ -32,6 +39,9 @@ AI-powered career guidance platform built using Next.js, Prisma, Tailwind CSS, a
 
 ### Mock Interview
 ![Mock Interview](public/screenshots/mock-interview.png)
+
+### Job recommendations
+![Job Recommendation](public/screenshots/analysis.png)
 
 ## Installation
 
